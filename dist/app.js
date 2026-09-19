@@ -58,7 +58,7 @@ function startMission(){
   state.session=session;state.index=0;state.score=0;state.hints=[];show('game');renderQuestion()
 }
 function renderQuestion(){
-  const q=state.session[state.index];state.selected=null;state.typed='';state.spellingGuesses=[];state.hintCost=0;state.checked=false;
+  const q=state.session[state.index];state.selected=null;state.typed='';state.spellingGuesses=[];state.spellingLastGuess=null;state.analysisWrong=[];state.analysisLastGuess=null;state.hintCost=0;state.checked=false;
   $('#round-now').textContent=state.index+1;$('#round-total').textContent=state.session.length;
   $('#round-bar').style.width=`${state.index/state.session.length*100}%`;$('#mode-tag').textContent=MODES[q.mode];
   $('#hint-bar').hidden=q.mode!=='analysis';
@@ -66,7 +66,7 @@ function renderQuestion(){
   $('#game-title').textContent=q.mode==='listening'?'🔊 ฟังแล้วเลือกคำ':q.mode==='analysis'||q.mode==='context'?q.ex:q.mode==='spelling'?q.th:q.w;
   $('#game-title').classList.toggle('sentence-prompt',q.mode==='analysis'||q.mode==='context');
   $('#example').textContent=q.mode==='analysis'?Array(q.answer.length).fill('_').join('  '):q.mode==='spelling'?`คำแปล: ${q.ex}`:'';
-  $('#feedback-text').textContent=q.mode==='analysis'?'เริ่มที่ 30 คะแนน · ใช้คำใบ้เมื่อจำเป็น':'เลือกคำตอบที่เหมาะที่สุด';
+  $('#feedback-text').textContent=q.mode==='analysis'?'เริ่มที่ 30 คะแนน · ใช้คำใบ้เมื่อจำเป็น':'เลือกคำตอบที่เหมาะที่สุด';$('#feedback-text').classList.remove('letter-correct','letter-wrong');
   $('#continue-btn').textContent='ตรวจคำตอบ';$('#continue-btn').disabled=true;$('#answers').classList.remove('hangman');
   if(q.mode==='analysis'){renderKeyboard();return}
   if(q.mode==='spelling'){renderSpelling();return}
@@ -76,18 +76,40 @@ function renderQuestion(){
   $('#answers').innerHTML=choices.map((c,i)=>`<button data-choice="${encodeURIComponent(c)}"><b>${'ABCD'[i]}</b>${c}</button>`).join('');
   $$('[data-choice]').forEach(b=>b.onclick=()=>{$$('[data-choice]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');state.selected=decodeURIComponent(b.dataset.choice);$('#continue-btn').disabled=false;$('#feedback-text').textContent='พร้อมแล้ว กดตรวจคำตอบ';sfx('tap')})
 }
-function renderKeyboard(){const q=state.session[state.index],letters='QWERTYUIOPASDFGHJKLZXCVBNM';$('#answers').classList.add('keyboard');$('#answers').innerHTML=`<div class="typed-word" id="typed-word">${state.typed.padEnd(q.answer.length,'_').split('').join(' ')}</div><div class="keys">${[...letters].map(l=>`<button data-letter="${l}">${l}</button>`).join('')}<button class="key-delete" data-delete>⌫</button></div>`;$$('[data-letter]').forEach(b=>b.onclick=()=>{if(state.typed.length<q.answer.length){state.typed+=b.dataset.letter.toLowerCase();sfx('tap');renderKeyboard();$('#continue-btn').disabled=state.typed.length!==q.answer.length}});$('[data-delete]').onclick=()=>{state.typed=state.typed.slice(0,-1);renderKeyboard();$('#continue-btn').disabled=true}}
+function setLetterFeedback(message,kind){const el=$('#feedback-text');el.textContent=message;el.classList.toggle('letter-correct',kind==='correct');el.classList.toggle('letter-wrong',kind==='wrong')}
+function renderKeyboard(){
+  const q=state.session[state.index],letters='QWERTYUIOPASDFGHJKLZXCVBNM',last=state.analysisLastGuess;
+  $('#answers').classList.remove('hangman');$('#answers').classList.add('keyboard');
+  const slots=[...q.answer].map((_,i)=>`<span class="word-slot ${i<state.typed.length?'revealed':''}">${state.typed[i]?.toUpperCase()||'&nbsp;'}</span>`).join('');
+  const status=last?last.correct?`✅ ถูกต้อง! เติม ${last.letter} แล้ว`:`❌ ${last.letter} ยังไม่ถูก ลองใหม่`:'กดตัวอักษรเพื่อเติมคำทีละตัว';
+  $('#answers').innerHTML=`<div class="typed-word" id="typed-word" aria-label="สะกดได้ ${state.typed.length} จาก ${q.answer.length} ตัว">${slots}</div><div class="letter-status ${last?last.correct?'letter-correct':'letter-wrong':''}" role="status">${status}</div><div class="keys">${[...letters].map(l=>`<button type="button" data-letter="${l}" class="${state.analysisWrong.includes(l)?'letter-wrong':last?.correct&&last.letter===l?'letter-correct':''}" ${state.analysisWrong.includes(l)||state.checked?'disabled':''}>${l}</button>`).join('')}<button type="button" class="key-delete" data-delete ${state.typed.length===0||state.checked?'disabled':''}>⌫</button></div>`;
+  $$('[data-letter]').forEach(button=>button.addEventListener('click',()=>guessAnalysisLetter(button.dataset.letter)));
+  $('[data-delete]').addEventListener('click',()=>{if(state.checked)return;state.typed=state.typed.slice(0,-1);state.analysisWrong=[];state.analysisLastGuess=null;$('#continue-btn').disabled=true;setLetterFeedback('ลบตัวสุดท้ายแล้ว ลองสะกดต่อ','');renderKeyboard()});
+}
+function guessAnalysisLetter(letter){
+  const q=state.session[state.index];if(!q||q.mode!=='analysis'||state.checked||state.typed.length>=q.answer.length||state.analysisWrong.includes(letter))return;
+  const correct=letter.toLowerCase()===q.answer[state.typed.length].toLowerCase();
+  state.analysisLastGuess={letter,correct};
+  if(correct){state.typed+=letter.toLowerCase();state.analysisWrong=[];setLetterFeedback(`ถูกต้อง! เติม ${letter} แล้ว · ${state.typed.length}/${q.answer.length} ตัว`,'correct')}
+  else{state.analysisWrong.push(letter);setLetterFeedback(`${letter} ยังไม่ใช่ตัวถัดไป ลองอีกครั้ง`,'wrong')}
+  $('#continue-btn').disabled=state.typed.length!==q.answer.length;sfx(correct?'correct':'wrong');renderKeyboard();
+}
 function renderSpelling(){
   const q=state.session[state.index],guesses=state.spellingGuesses||[],misses=guesses.filter(letter=>letter!==q.answer).length;
   $('#answers').classList.remove('keyboard');$('#answers').classList.add('hangman');
   $('#game-title').textContent=guesses.includes(q.answer)?q.w:q.th;
-  $('#answers').innerHTML=`<div class="hangman-status" role="status">${guesses.includes(q.answer)?'ถูกต้อง! ตัวอักษรปรากฏแล้ว ✨':misses>=5?`พลาดครบ 5 ครั้ง · คำตอบคือ ${q.w}`:`ทายตัวอักษรที่หายไป · พลาด ${misses}/5`}</div><div class="hangman-keys">${[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(letter=>`<button type="button" data-guess="${letter}" ${guesses.includes(letter)||guesses.includes(q.answer)||misses>=5?'disabled':''}>${letter}</button>`).join('')}</div>`;
+  const last=state.spellingLastGuess,shown=guesses.includes(q.answer)||state.checked;
+  const slots=[...q.w].map((letter,i)=>`<span class="word-slot ${q.th[i]==='_'?(shown?'revealed':'missing'):'given'}">${q.th[i]==='_'&&!shown?'&nbsp;':letter}</span>`).join('');
+  const message=last?last===q.answer?`✅ ถูกต้อง! ตัว ${last} เติมลงช่องแล้ว`:`❌ ${last} ยังไม่ถูก · พลาด ${misses}/5`:`ทายตัวอักษรที่หายไป · พลาด ${misses}/5`;
+  $('#answers').innerHTML=`<div class="hangman-word" aria-label="คำศัพท์ ${shown?q.w:q.th}">${slots}</div><div class="hangman-status ${last?last===q.answer?'letter-correct':'letter-wrong':''}" role="status">${misses>=5&&!shown?`พลาดครบ 5 ครั้ง · กดดูคำตอบ`:message}</div><div class="hangman-keys">${[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(letter=>`<button type="button" data-guess="${letter}" class="${guesses.includes(letter)?letter===q.answer?'letter-correct':'letter-wrong':''}" ${guesses.includes(letter)||guesses.includes(q.answer)||misses>=5||state.checked?'disabled':''}>${letter}</button>`).join('')}</div>`;
   $$('[data-guess]').forEach(button=>button.addEventListener('click',()=>{
     const letter=button.dataset.guess;
     if(state.spellingGuesses?.includes(letter)||state.checked)return;
     state.spellingGuesses=[...(state.spellingGuesses||[]),letter];
+    state.spellingLastGuess=letter;
     const wrong=state.spellingGuesses.filter(guess=>guess!==q.answer).length;
-    if(letter===q.answer||wrong>=5){state.selected=letter;$('#continue-btn').disabled=false;$('#feedback-text').textContent=letter===q.answer?'ตัวอักษรขึ้นแล้ว กดตรวจคำตอบ':'พลาดครบ 5 ครั้ง กดดูคำตอบ'}
+    if(letter===q.answer||wrong>=5){state.selected=letter;$('#continue-btn').disabled=false}
+    setLetterFeedback(letter===q.answer?`ถูกต้อง! เติม ${letter} แล้ว กดตรวจคำตอบ`:wrong>=5?`พลาดครบ 5 ครั้ง · กดดูคำตอบ`:`${letter} ยังไม่ถูก · เหลืออีก ${5-wrong} ครั้ง`,letter===q.answer?'correct':'wrong');
     sfx(letter===q.answer?'correct':'wrong');renderSpelling();
   }));
 }
@@ -129,7 +151,7 @@ async function loadRanking(){let rows=state.name?[{displayName:state.name,xp:sta
 $('#name-form').addEventListener('submit',async e=>{e.preventDefault();const n=$('#player-name').value.trim();if(!n)return;$('#start-btn').disabled=true;$('#start-btn').textContent='กำลังเปิดแผนที่…';await loadPlayer(n);show('map');$('#start-btn').disabled=false;$('#start-btn').textContent='เริ่มผจญภัย'});
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.go)));$$('[data-play]').forEach(b=>b.addEventListener('click',startMission));$('#continue-btn').addEventListener('click',checkAnswer);$('#listen-word').addEventListener('click',()=>{const q=state.session[state.index];if('speechSynthesis'in window){speechSynthesis.cancel();const spoken=q.mode==='analysis'?q.ex.replace('____',q.answer):q.mode==='reverse'?q.th:q.w;const u=new SpeechSynthesisUtterance(spoken);u.lang='en-US';u.rate=.78;speechSynthesis.speak(u);sfx('tap')}else $('#feedback-text').textContent='อุปกรณ์นี้ยังไม่มีเสียงอ่านภาษาอังกฤษ'});$('#reset-player').addEventListener('click',()=>{localStorage.removeItem('wqa.progress');location.reload()});
 $$('[data-hint]').forEach(b=>b.addEventListener('click',()=>useHint(b.dataset.hint,Number(b.dataset.cost))));
-document.addEventListener('keydown',e=>{const q=state.session[state.index];if(!q||q.mode!=='analysis'||!$('#screen-game').classList.contains('active'))return;if(e.key==='1')useHint('first',5);else if(e.key==='2')useHint('vowel',10);else if(e.key==='3')useHint('translate',15);else if(/^[a-z]$/i.test(e.key)&&state.typed.length<q.answer.length){state.typed+=e.key.toLowerCase();renderKeyboard();$('#continue-btn').disabled=state.typed.length!==q.answer.length;sfx('tap')}else if(e.key==='Backspace'){state.typed=state.typed.slice(0,-1);renderKeyboard();$('#continue-btn').disabled=true}});
+document.addEventListener('keydown',e=>{const q=state.session[state.index];if(!q||q.mode!=='analysis'||!$('#screen-game').classList.contains('active')||state.checked)return;if(e.key==='1')useHint('first',5);else if(e.key==='2')useHint('vowel',10);else if(e.key==='3')useHint('translate',15);else if(/^[a-z]$/i.test(e.key))guessAnalysisLetter(e.key.toUpperCase());else if(e.key==='Backspace'&&state.typed.length){state.typed=state.typed.slice(0,-1);state.analysisWrong=[];state.analysisLastGuess=null;renderKeyboard();$('#continue-btn').disabled=true}});
 function addCollectionWorlds(){const anchor=$('.egg-vault');if(!anchor)return;const groups=[{title:'🌊 มหาสมุทรประกาย · 🏜️ ทะเลทรายดาวตก',set:'ocean',pets:['Pearl','Echo','Coral','Sandy','Nova','Scout']},{title:'🌴 พงไพรสีรุ้ง · 🌼 ทุ่งดอกไม้',set:'jungle',pets:['Tango','Posty','Mellow','Pompom','Daisy','Dot']},{title:'💎 นครคริสตัล · 🍬 อาณาจักรขนมหวาน',set:'candy',pets:['Gem','Berry','Jelly','Sunny','Minto','Flora']}];let html='<div class="expanded-worlds">';for(const group of groups){html+=`<h2 class="world-title">${group.title} <small>6 ตัว</small></h2><div class="collection-grid compact ${group.set==='candy'?'mythic':''}">`;group.pets.forEach((name,i)=>{html+=`<article class="pet"><span class="sprite ${group.set} s${i+1}"></span><div><small>${group.set==='candy'?'MYTHIC':'EPIC'}</small><h2>${name}</h2><p>Rescue Friend</p></div></article>`});html+='</div>'}html+='<h2 class="world-title">🌌 ประตูลับ <small>Legendary · 2 ตัว</small></h2><div class="collection-grid compact mythic"><article class="pet mystery"><span>?</span><div><small>LEGENDARY</small><h2>ยังไม่เปิดเผย</h2><p>ผ่าน Boss ทุกโลก</p></div></article><article class="pet mystery"><span>?</span><div><small>LEGENDARY</small><h2>เพื่อนลับ</h2><p>Master คำศัพท์ 500 คำ</p></div></article></div></div>';anchor.insertAdjacentHTML('beforebegin',html)}
 addCollectionWorlds();
 /* legacy long collection builder retained for reference
