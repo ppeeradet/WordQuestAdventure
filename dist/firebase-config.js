@@ -1,0 +1,1 @@
+export const firebaseConfig={apiKey:'AIzaSyBCM-kakQvlMg6Y59MR3rSDZq0Ws6to3xk',authDomain:'word-quest-ppeeradet.firebaseapp.com',projectId:'word-quest-ppeeradet',storageBucket:'word-quest-ppeeradet.firebasestorage.app',messagingSenderId:'38726298551',appId:'1:38726298551:web:305c17f7d0244138e31632'};
