@@ -4,6 +4,7 @@ import {normalizeProgress,completeMission,isBossMission} from '../dist/progressi
 import {PETS} from '../dist/pets.js';
 import {PRIMARY_VOCAB} from '../dist/primary-vocab.js';
 import {expandQuestionBank,validateQuestionBank} from '../dist/question-bank.js';
+import {OPENING_STORY,missionStory} from '../dist/stories.js';
 import {readFileSync} from 'node:fs';
 import {parse} from 'acorn';
 import {runInNewContext} from 'node:vm';
@@ -64,4 +65,18 @@ test('all 100 missions unlock in sequence; egg hatches a real pet',()=>{
   assert.equal(p.petIds.length,100);
   assert.ok(hatched>0);
   assert.equal(p.eggsHatched,20);
+});
+test('opening and all 100 stage stories have bilingual, stage-specific text',()=>{
+  assert.ok(OPENING_STORY.en&&OPENING_STORY.th);
+  const stories=Array.from({length:100},(_,i)=>missionStory(i+1,PETS[Math.min(99,i+1)].name));
+  assert.equal(new Set(stories.map(story=>story.en)).size,100);
+  assert.equal(new Set(stories.map(story=>story.th)).size,100);
+  assert.equal(stories.filter(story=>story.boss).length,10);
+  assert.ok(stories.every(story=>story.title&&story.en&&story.th&&story.topics.length));
+  assert.ok(stories.every(story=>PRIMARY_VOCAB.some(word=>story.topics.includes(word[4]))));
+  const bank=expandQuestionBank([],PRIMARY_VOCAB);
+  for(const story of stories){
+    const modes=new Set(bank.filter(question=>story.topics.includes(question.topic)).map(question=>question.mode));
+    assert.equal(modes.size,6,`missing themed question mode for ${story.title}`);
+  }
 });
