@@ -4,12 +4,15 @@
 
 ## เล่นและเผยแพร่
 
-ตัวเกมอยู่ใน `dist/` เปิดผ่าน local HTTP server เพื่อทดสอบ และรัน `npm test` ตรวจ 100 ด่าน หากสร้าง repository ใหม่และ push ไป `main`, GitHub Pages workflow จะเผยแพร่ `dist/`; ปัจจุบันยังไม่มี URL สาธารณะที่ตรวจยืนยันแล้ว
+ตัวเกมอยู่ใน `dist/` เปิดผ่าน local HTTP server เพื่อทดสอบ และรัน `npm test` ตรวจ 100 ด่าน GitHub Pages เผยแพร่ที่ https://ppeeradet.github.io/WordQuestAdventure/
 
 ## เป้าหมาย implementation
 
 - Static-first PWA พร้อม deploy บน GitHub Pages
-- Firebase Firestore สำหรับ cloud progress และ ranking พร้อม local fallback เมื่อกฎ/เครือข่ายไม่พร้อม; ยังไม่เปิด cloud write สาธารณะ
+- Firebase Anonymous Auth + Firestore สำหรับอันดับข้ามเครื่อง ผู้เล่นแต่ละเครื่องเขียนได้เฉพาะรายการของตัวเอง; เมื่อ Cloud ไม่พร้อมจะแสดงอันดับเฉพาะเครื่อง
+- ความคืบหน้าด่านและสัตว์เก็บทั้งบนเครื่องและ Firestore ตามชื่อผู้เล่น; เปลี่ยนเครื่องให้กรอกชื่อเดิม ชื่อที่ซ้ำกันในอันดับรวมด้วยคะแนนสูงสุด
+- ชื่อเดียวกันสามารถเปิดข้อมูลและเล่นต่อร่วมกันได้ จึงควรใช้ชื่อที่ไม่ซ้ำกับเพื่อนและไม่ใช้กับข้อมูลส่วนตัว
+- ชื่อผู้เล่นไม่ใช่การยืนยันตัวตน และคะแนนจากเกมฝั่ง browser ยังป้องกันการปลอมคะแนนไม่ได้ เหมาะกับการเล่นในกลุ่มเล็กที่ไว้ใจกัน
 - Touch-first responsive บน phone, iPad/tablet และ computer
 
 รายละเอียดผลิตภัณฑ์ โครงสร้างข้อมูล และ technical plan อยู่ใน `docs/GAME_DESIGN_V1.md`

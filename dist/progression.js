@@ -17,6 +17,14 @@ export function normalizeProgress(raw={}){
   };
 }
 
+// Merge two copies of the same named player's progress without discarding rescues.
+export function mergeProgress(local={},cloud={}){
+  const a=normalizeProgress(local),b=normalizeProgress(cloud);
+  const higher=(field)=>Math.max(Number(a[field])||0,Number(b[field])||0);
+  const counters=(field)=>Object.fromEntries([...new Set([...Object.keys(a[field]||{}),...Object.keys(b[field]||{})])].map(key=>[key,Math.max(Number(a[field]?.[key])||0,Number(b[field]?.[key])||0)]));
+  return normalizeProgress({...a,xp:higher('xp'),stars:higher('stars'),streak:higher('streak'),completed:higher('completed'),missionUnlocked:higher('missionUnlocked'),egg:higher('egg'),eggsHatched:higher('eggsHatched'),petIds:uniqueSorted([...a.petIds,...b.petIds]),completedMissions:uniqueSorted([...a.completedMissions,...b.completedMissions]),mastery:counters('mastery'),errors:counters('errors')});
+}
+
 export function completeMission(progress,mission,score,total=10,random=Math.random){
   if(!Number.isInteger(mission)||mission<1||mission>TOTAL_MISSIONS||mission>progress.missionUnlocked)throw new Error('Mission is locked');
   if(!Number.isInteger(score)||score<0||score>total)throw new Error('Invalid score');

@@ -2,8 +2,9 @@ import { firebaseConfig } from './firebase-config.js';
 import { PETS } from './pets.js';
 import { PRIMARY_VOCAB } from './primary-vocab.js';
 import { expandQuestionBank, validateQuestionBank } from './question-bank.js';
-import { normalizeProgress, completeMission, isBossMission } from './progression.js';
+import { normalizeProgress, mergeProgress, completeMission, isBossMission } from './progression.js';
 import { OPENING_STORY, missionStory } from './stories.js';
+import { rankPlayers } from './ranking.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const WORDS=[
  {w:'rescue',th:'ช่วยเหลือ',wrong:['สำรวจ','ซ่อนตัว','เดินทาง'],ex:'The ranger came to ___ the lost bird.',mode:'meaning'},
@@ -36,9 +37,11 @@ const firebaseReady=(async()=>{try{if(!firebaseConfig?.projectId||firebaseConfig
 const keyName=n=>n.trim().toLocaleLowerCase('en-US').replace(/[^a-z0-9ก-๙_-]/g,'-').replace(/-+/g,'-').slice(0,32);
 function readLocalPlayers(){try{const saved=JSON.parse(localStorage.getItem('wqa.players')||'{}');return saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{}}catch{return {}}}
 function saveLocal(){const progress={name:state.name,xp:state.xp,stars:state.stars,streak:state.streak,rescued:state.rescued,petIds:state.petIds,egg:state.egg,eggsHatched:state.eggsHatched,completed:state.completed,completedMissions:state.completedMissions,missionUnlocked:state.missionUnlocked,mastery:state.mastery,errors:state.errors};localStorage.setItem('wqa.progress',JSON.stringify(progress));if(state.name){const players=readLocalPlayers();players[keyName(state.name)]=progress;localStorage.setItem('wqa.players',JSON.stringify(players))}renderStats()}
-async function syncPlayer(){if(!state.name)return;try{await timed(firebaseReady);if(!db)return;await timed(setDoc(doc(db,'players',keyName(state.name)),{displayName:state.name,xp:state.xp,stars:state.stars,streak:state.streak,rescued:state.rescued,petIds:state.petIds,egg:state.egg,eggsHatched:state.eggsHatched,completed:state.completed,completedMissions:state.completedMissions,missionUnlocked:state.missionUnlocked,mastery:state.mastery,errors:state.errors,lastPlayedAt:serverTimestamp()},{merge:true}));setCloud('cloud')}catch(e){setCloud('offline')}}
-async function loadPlayer(name){if(keyName(state.name||'')!==keyName(name)){const saved=readLocalPlayers()[keyName(name)];state={...defaults,...normalizeProgress(saved||{petIds:[1],completedMissions:[]}),session:[],index:0,score:0}}state.name=name;try{await timed(firebaseReady);if(db){const snap=await timed(getDoc(doc(db,'players',keyName(name))));if(snap.exists())state={...state,...normalizeProgress(snap.data()),name};setCloud('cloud')}}catch(e){setCloud('offline')}saveLocal();renderLongProgress();syncPlayer();loadRanking()}
-function setCloud(mode){const el=$('#cloud-state');el.textContent=mode==='cloud'?'☁️ บันทึกบน Cloud แล้ว':'📱 เล่นออฟไลน์';el.className=mode}
+let syncQueue=Promise.resolve();
+function cloudProgress(){return {displayName:state.name,xp:Math.max(0,Math.trunc(Number(state.xp)||0)),stars:Math.max(0,Math.trunc(Number(state.stars)||0)),streak:state.streak,completed:state.completed,missionUnlocked:state.missionUnlocked,petIds:state.petIds,completedMissions:state.completedMissions,egg:state.egg,eggsHatched:state.eggsHatched,mastery:state.mastery,errors:state.errors,lastPlayedAt:serverTimestamp()}}
+function syncPlayer(){const name=state.name;if(!name)return Promise.resolve();syncQueue=syncQueue.catch(()=>{}).then(async()=>{try{await timed(firebaseReady);if(!db)return;const uid=(await timed(authReady)).user.uid,nameKey=keyName(name),progressRef=doc(db,'players',nameKey);const saved=await timed(getDoc(progressRef));if(keyName(state.name)!==nameKey)return;if(saved.exists()){state={...state,...mergeProgress(state,saved.data())};saveLocal();renderLongProgress()}await timed(setDoc(progressRef,cloudProgress()));await timed(setDoc(doc(db,'leaderboard',`${uid}_${nameKey}`),{uid,nameKey,displayName:name,xp:Math.max(0,Math.trunc(Number(state.xp)||0)),stars:Math.max(0,Math.trunc(Number(state.stars)||0)),lastPlayedAt:serverTimestamp()},{merge:true}));setCloud('cloud')}catch(e){console.warn('Cloud sync unavailable',e);setCloud('offline')}});return syncQueue}
+async function loadPlayer(name){if(keyName(state.name||'')!==keyName(name)){const saved=readLocalPlayers()[keyName(name)];state={...defaults,...normalizeProgress(saved||{petIds:[1],completedMissions:[]}),session:[],index:0,score:0}}state.name=name;try{await timed(firebaseReady);if(db){await timed(authReady);const saved=await timed(getDoc(doc(db,'players',keyName(name))));if(saved.exists())state={...state,...mergeProgress(state,saved.data()),name};setCloud('cloud')}}catch(e){console.warn('Cloud load unavailable',e);setCloud('offline')}saveLocal();renderLongProgress();loadRanking();void syncPlayer().then(loadRanking)}
+function setCloud(mode){const el=$('#cloud-state');el.textContent=mode==='cloud'?'☁️ บันทึกด่าน · 🏆 อันดับร่วม':'📱 บันทึกบนเครื่อง';el.className=mode}
 function renderStats(){$('#streak').textContent=state.streak;$('#stars').textContent=state.stars;$('#xp-now').textContent=state.xp;$('#egg-progress').style.width=`${state.egg}%`;$('#egg-label').textContent=`พลังฟักไข่ ${state.egg}% · ฟักแล้ว ${state.eggsHatched} ใบ`;$('#pet-count').textContent=state.petIds.length;$$('[data-player]').forEach(x=>x.textContent=state.name||'นักสำรวจ');$('.avatar').textContent=(state.name||'WQ').slice(0,2).toUpperCase()}
 function show(name){$$('.screen').forEach(x=>x.classList.remove('active'));$(`#screen-${name}`)?.classList.add('active');$$('.mobile-nav button').forEach(x=>x.classList.toggle('active',x.dataset.go===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='ranking')loadRanking()}
 let storyAudio,storyAudioId;
@@ -164,12 +167,15 @@ function showRescuePopup(ids){
 }
 $('#rescue-popup-close').addEventListener('click',()=>$('#rescue-popup').close());
 $('#rescue-popup-collection').addEventListener('click',()=>{$('#rescue-popup').close();show('collection')});
+let rankingRequest=0;
 async function loadRanking(){
+  const request=++rankingRequest;
   const players=readLocalPlayers();if(state.name)players[keyName(state.name)]={name:state.name,xp:state.xp,stars:state.stars,petIds:state.petIds};
-  let rows=Object.values(players).filter(player=>player&&typeof player.name==='string').map(player=>({displayName:player.name,xp:Number(player.xp)||0,stars:Number(player.stars)||0}));
+  let rows=Object.values(players).filter(player=>player&&typeof player.name==='string').map(player=>({displayName:player.name,nameKey:keyName(player.name),xp:Number(player.xp)||0,stars:Number(player.stars)||0}));
   let source='ในเครื่องนี้';
-  if(db)try{await timed(authReady);const snaps=await timed(getDocs(query(collection(db,'players'),orderBy('xp','desc'),limit(20))));if(!snaps.empty){rows=snaps.docs.map(doc=>doc.data());source='Firebase Cloud'}}catch(e){console.warn('Ranking unavailable',e)}
-  rows.sort((a,b)=>(Number(b.xp)||0)-(Number(a.xp)||0)||(Number(b.stars)||0)-(Number(a.stars)||0)||(a.displayName||'').localeCompare(b.displayName||''));
+  try{await timed(firebaseReady);if(db){await timed(authReady);const snaps=await timed(getDocs(query(collection(db,'leaderboard'),orderBy('xp','desc'),limit(100))));rows=snaps.docs.map(entry=>entry.data());source='Firebase Cloud';setCloud('cloud')}}catch(e){console.warn('Ranking unavailable',e)}
+  if(request!==rankingRequest)return;
+  rows=rankPlayers(rows);
   $('#ranking-source').textContent=`อันดับจาก${source} · เรียงตามคะแนน XP สะสม${source==='ในเครื่องนี้'?' (ยังไม่ใช่อันดับข้ามเครื่อง)':''}`;
   const list=$('#rank-list');list.replaceChildren();
   if(!rows.length){const empty=document.createElement('li');empty.className='rank-empty';empty.textContent='ยังไม่มีคะแนน เริ่มเล่นด่านแรกกันเลย';list.append(empty);return}
@@ -224,18 +230,16 @@ function renderLongProgress(){
   const grid=$('.world-selector .world-grid');
   if(!grid)return;
   const unlocked=Math.min(100,Math.max(1,Number(state.missionUnlocked)||1));
-  const trail=$$('#screen-map .trail .level');
-  trail.forEach((button,i)=>{
-    const mission=i+1;
-    button.classList.toggle('done',mission<unlocked);
-    button.classList.toggle('current',mission===unlocked);
-    button.classList.toggle('locked',mission>unlocked);
-    button.classList.toggle('boss',mission===5&&mission>unlocked);
-    button.disabled=mission>unlocked;
-    button.innerHTML=mission<unlocked?'✓':mission===unlocked?`${mission}<span>เล่น</span>`:'🔒';
-    button.setAttribute('aria-label',`ด่าน ${mission}${mission>unlocked?' ยังไม่ปลดล็อก':' เล่น'}`);
-    if(!button.dataset.rescueBound){button.addEventListener('click',event=>{event.stopImmediatePropagation();state.mission=mission;startMission()},true);button.dataset.rescueBound='true'}
-  });
+  const worldIndex=Math.floor((unlocked-1)/10),first=worldIndex*10+1,trail=$('#screen-map .trail');
+  trail.classList.toggle('river-trail',worldIndex===1);
+  trail.innerHTML=`<div class="world-banner"></div><div class="trail-journey"><div class="path-line"></div>${Array.from({length:10},(_,i)=>{const mission=first+i,open=mission<=unlocked;return `<button type="button" class="level ${mission<unlocked?'done':open?'current':'locked'} ${isBossMission(mission)?'boss':''}" style="--x:${i%2?67:31}%;--y:${8+i*9.2}%" data-trail-mission="${mission}" ${open?'':'disabled'} aria-label="ด่าน ${mission}${isBossMission(mission)?' บอส':''}${open?' เล่นหรือเล่นซ้ำ':' ยังไม่ปลดล็อก'}">${mission<unlocked?'✓':open?`${mission}<span>เล่น</span>`:'🔒'}</button>`}).join('')}</div>`;
+  trail.querySelectorAll('[data-trail-mission]').forEach(button=>button.addEventListener('click',()=>{state.mission=Number(button.dataset.trailMission);startMission()}));
+  const current=trail.querySelector('.level.current');if(current)trail.scrollTop=Math.max(0,current.offsetTop-trail.clientHeight/2);
+  const mapHead=$('#screen-map .map-head');mapHead.querySelector('.eyebrow').textContent=`${worldIndex===0?'FOREST TRAIL':`WORLD ${worldIndex+1}`} · WORLD ${worldIndex+1}`;
+  mapHead.querySelector('h1').textContent=worldIndex===0?'เส้นทางป่ากระซิบ':worlds[worldIndex];
+  const next=$('#screen-map .next-world');next.classList.toggle('unlocked',unlocked>=11);next.querySelector('.eyebrow').textContent=unlocked>=11?'WORLD 2 · OPEN':'COMING NEXT';next.querySelector('span').textContent=unlocked>=11?'✓':'🔒';
+  next.setAttribute('role',unlocked>=11?'button':'group');next.tabIndex=unlocked>=11?0:-1;
+  if(unlocked>=11&&!next.dataset.rescueBound){const enter=()=>{state.mission=Math.max(11,Math.min(20,Number(state.missionUnlocked)||11));startMission()};next.addEventListener('click',enter);next.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();enter()}});next.dataset.rescueBound='true'}
   grid.innerHTML=worlds.map((world,wi)=>`<article class="world-card"><span>${icons[wi]}</span><div><small>WORLD ${wi+1}</small><h3>${world}</h3><p>ด่าน ${wi*10+1}–${wi*10+10}</p><div class="mission-grid">${Array.from({length:10},(_,j)=>{const n=wi*10+j+1,open=n<=unlocked;return `<button type="button" data-mission="${n}" ${open?'':'disabled'} aria-label="ด่าน ${n}${isBossMission(n)?' บอส':''}${open?' เล่นหรือเล่นซ้ำ':' ยังไม่ปลดล็อก'}">${n<unlocked?'✓':open?(isBossMission(n)?'👑':n):'🔒'}</button>`}).join('')}</div></div></article>`).join('');
   $$('[data-mission]').forEach(button=>button.addEventListener('click',()=>{state.mission=Number(button.dataset.mission);startMission()}));
   $$('#screen-map [data-play]').forEach(button=>{if(!button.dataset.rescueBound){button.addEventListener('click',()=>{state.mission=Number(state.missionUnlocked)||1},true);button.dataset.rescueBound='true'}});

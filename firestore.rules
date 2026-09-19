@@ -1,19 +1,61 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Small trusted group: a name is the shared key. Anyone who knows it can load it.
     match /players/{playerId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null && validPlayer();
+      allow get: if request.auth != null;
+      allow list, delete: if false;
+      allow create: if request.auth != null && validProgress(playerId);
+      allow update: if request.auth != null && validProgress(playerId)
+        && request.resource.data.xp >= resource.data.xp
+        && request.resource.data.stars >= resource.data.stars
+        && request.resource.data.missionUnlocked >= resource.data.missionUnlocked;
+    }
+    match /leaderboard/{entryId} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && request.query.limit <= 100;
+      allow create: if request.auth != null && validEntry(entryId);
+      allow update: if request.auth != null && validEntry(entryId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.nameKey == resource.data.nameKey
+        && request.resource.data.xp >= resource.data.xp
+        && request.resource.data.stars >= resource.data.stars;
       allow delete: if false;
     }
-    function validPlayer() {
-      return request.resource.data.displayName is string
+    function validEntry(entryId) {
+      return request.resource.data.keys().hasAll(['uid','nameKey','displayName','xp','stars','lastPlayedAt'])
+        && request.resource.data.keys().hasOnly(['uid','nameKey','displayName','xp','stars','lastPlayedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nameKey is string
+        && request.resource.data.nameKey.size() >= 1
+        && request.resource.data.nameKey.size() <= 32
+        && entryId == request.auth.uid + '_' + request.resource.data.nameKey
+        && request.resource.data.displayName is string
         && request.resource.data.displayName.size() >= 1
         && request.resource.data.displayName.size() <= 16
         && request.resource.data.xp is int
         && request.resource.data.xp >= 0 && request.resource.data.xp <= 1000000
         && request.resource.data.stars is int
-        && request.resource.data.stars >= 0 && request.resource.data.stars <= 100000;
+        && request.resource.data.stars >= 0 && request.resource.data.stars <= 100000
+        && request.resource.data.lastPlayedAt is timestamp;
+    }
+    function validProgress(playerId) {
+      return playerId.size() >= 1 && playerId.size() <= 32
+        && request.resource.data.keys().hasAll(['displayName','xp','stars','streak','completed','missionUnlocked','petIds','completedMissions','egg','eggsHatched','mastery','errors','lastPlayedAt'])
+        && request.resource.data.keys().hasOnly(['displayName','xp','stars','streak','completed','missionUnlocked','petIds','completedMissions','egg','eggsHatched','mastery','errors','lastPlayedAt'])
+        && request.resource.data.displayName is string && request.resource.data.displayName.size() >= 1 && request.resource.data.displayName.size() <= 16
+        && request.resource.data.xp is int && request.resource.data.xp >= 0 && request.resource.data.xp <= 1000000
+        && request.resource.data.stars is int && request.resource.data.stars >= 0 && request.resource.data.stars <= 100000
+        && request.resource.data.streak is int && request.resource.data.streak >= 0 && request.resource.data.streak <= 100000
+        && request.resource.data.completed is int && request.resource.data.completed >= 0 && request.resource.data.completed <= 100000
+        && request.resource.data.missionUnlocked is int && request.resource.data.missionUnlocked >= 1 && request.resource.data.missionUnlocked <= 100
+        && request.resource.data.petIds is list && request.resource.data.petIds.size() <= 100
+        && request.resource.data.completedMissions is list && request.resource.data.completedMissions.size() <= 100
+        && request.resource.data.egg is int && request.resource.data.egg >= 0 && request.resource.data.egg < 100
+        && request.resource.data.eggsHatched is int && request.resource.data.eggsHatched >= 0 && request.resource.data.eggsHatched <= 100000
+        && request.resource.data.mastery is map && request.resource.data.mastery.size() <= 1000
+        && request.resource.data.errors is map && request.resource.data.errors.size() <= 1000
+        && request.resource.data.lastPlayedAt is timestamp;
     }
   }
 }

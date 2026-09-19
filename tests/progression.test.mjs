@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeProgress,completeMission,isBossMission} from '../dist/progression.js';
+import {normalizeProgress,mergeProgress,completeMission,isBossMission} from '../dist/progression.js';
 import {PETS} from '../dist/pets.js';
 import {PRIMARY_VOCAB} from '../dist/primary-vocab.js';
 import {expandQuestionBank,validateQuestionBank} from '../dist/question-bank.js';
@@ -8,6 +8,15 @@ import {OPENING_STORY,missionStory} from '../dist/stories.js';
 import {readFileSync} from 'node:fs';
 import {parse} from 'acorn';
 import {runInNewContext} from 'node:vm';
+
+test('same-name cloud progress keeps highest stage and both collections',()=>{
+  const merged=mergeProgress({xp:360,stars:52,missionUnlocked:11,petIds:[1,2,99],completedMissions:[1,2,10],egg:40},{xp:300,stars:60,missionUnlocked:9,petIds:[1,3],completedMissions:[1,3],egg:80});
+  assert.equal(merged.missionUnlocked,11);
+  assert.equal(merged.xp,360);
+  assert.equal(merged.stars,60);
+  assert.deepEqual(merged.petIds,[1,2,3,99]);
+  assert.deepEqual(merged.completedMissions,[1,2,3,10]);
+});
 
 test('100 distinct pets have image cells and individual details',()=>{
   assert.equal(PETS.length,100);
