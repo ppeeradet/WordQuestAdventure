@@ -1,4 +1,5 @@
 export const OPENING_STORY={
+  audioId:'opening',
   title:'เรื่องราวของ Word Quest',
   en:'Maple found a glowing map. Each new English word lights a path to an animal waiting for help. Read, listen, and solve the word puzzles. Together, we can bring every friend home.',
   th:'เมเปิลพบแผนที่เรืองแสง คำศัพท์ภาษาอังกฤษแต่ละคำจะส่องทางไปหาเพื่อนสัตว์ที่รอความช่วยเหลือ อ่าน ฟัง และไขปริศนาคำศัพท์ แล้วพาเพื่อนทุกตัวกลับบ้านไปด้วยกัน'
@@ -33,6 +34,7 @@ export function missionStory(mission,friendName){
   if(!Number.isInteger(mission)||mission<1||mission>100)throw new Error('Invalid mission');
   const world=WORLDS[Math.floor((mission-1)/10)],beat=BEATS[(mission-1)%10],name=friendName||'your friend';
   return {
+    audioId:String(mission).padStart(3,'0'),
     title:`ด่าน ${mission} · ${world[0]}`,
     en:`In ${world[1]}, ${world[2]}. ${beat[0]} ${name} is counting on you.`,
     th:`ใน${world[0]} ${world[3]} ${beat[1]} ${name} กำลังรอคุณช่วย`,
