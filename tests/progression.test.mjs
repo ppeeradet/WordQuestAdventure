@@ -16,6 +16,28 @@ test('same-name cloud progress keeps highest stage and both collections',()=>{
   assert.equal(merged.stars,60);
   assert.deepEqual(merged.petIds,[1,2,3,99]);
   assert.deepEqual(merged.completedMissions,[1,2,3,10]);
+  assert.equal(merged.egg,80);
+});
+
+test('egg advances only for distinct cleared stages and ignores stale cloud egg',()=>{
+  let p=normalizeProgress({missionUnlocked:1,petIds:[1],completedMissions:[],egg:80});
+  assert.equal(p.egg,0);
+  for(let mission=1;mission<=4;mission++){
+    p=completeMission(p,mission,8,10,()=>0).progress;
+    assert.equal(p.egg,mission*20);
+  }
+  const replay=completeMission(p,3,8,10,()=>0);
+  assert.equal(replay.progress.egg,80);
+  assert.equal(replay.reward.newPetId,null);
+  assert.equal(replay.reward.hatchedPetId,null);
+  const fifth=completeMission(replay.progress,5,8,10,()=>0);
+  assert.equal(fifth.progress.egg,0);
+  assert.ok(fifth.reward.newPetId);
+  assert.ok(fifth.reward.hatchedPetId);
+  const stale=mergeProgress(fifth.progress,{missionUnlocked:5,petIds:[1,2,3,4,5],completedMissions:[1,2,3,4],egg:80,eggsHatched:0});
+  assert.equal(stale.egg,0);
+  assert.equal(stale.eggsHatched,1);
+  assert.equal(completeMission(stale,5,8,10,()=>0).reward.hatchedPetId,null);
 });
 
 test('100 distinct pets have image cells and individual details',()=>{

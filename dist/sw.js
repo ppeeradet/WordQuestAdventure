@@ -1,4 +1,4 @@
-const CACHE='word-quest-v21';
+const CACHE='word-quest-v22';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./ranking.js','./pets.js','./primary-vocab.js','./question-bank.js','./progression.js','./stories.js','./firebase-config.js','./manifest.webmanifest','./favicon.svg','./assets/forest-rescue.png','./assets/river-world.png','./assets/fantasy-pets.png','./assets/pet-cutouts/main-maple-explorer.png','./assets/pet-cutouts/item-rescue-egg.png','./assets/pet-cutouts/001-pip.png','./assets/story-th/opening.mp3'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));

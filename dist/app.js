@@ -225,7 +225,7 @@ function renderLongProgress(){
     card.classList.toggle('locked',!rescued);
     card.setAttribute('aria-label',`${rescued?'ช่วยสำเร็จ':'ยังไม่ช่วย'}: ${card.querySelector('h2')?.textContent||`เพื่อนหมายเลข ${index+1}`}`);
   });
-  $('.egg-vault p').textContent=`พลังฟักไข่ ${state.egg}% · ฟักแล้ว ${state.eggsHatched} ใบ · ทุก 5 ภารกิจที่สำเร็จมีโอกาสพบเพื่อน Mythic`;
+  $('.egg-vault p').textContent=`พลังฟักไข่ ${state.egg}% · ฟักแล้ว ${state.eggsHatched} ใบ · ผ่านด่านใหม่ทุก 5 ด่านจะฟักเพื่อนพิเศษ (เล่นซ้ำไม่นับ)`;
   const worlds=['ป่ากระซิบ','มหาสมุทรประกาย','พงไพรสีรุ้ง','ทุ่งดอกไม้','ภูเขาไฟมิตรภาพ','หุบเขาน้ำแข็ง','นครเหนือเมฆ','ป่าราตรี','นครคริสตัล','อาณาจักรขนมหวาน'];
   const icons=['🌿','🌊','🌴','🌼','🌋','❄️','☁️','🌙','💎','🍬'];
   const grid=$('.world-selector .world-grid');
