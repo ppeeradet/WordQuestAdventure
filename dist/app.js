@@ -6,6 +6,10 @@ import { normalizeProgress, mergeProgress, completeMission, isBossMission } from
 import { OPENING_STORY, missionStory } from './stories.js';
 import { rankPlayers } from './ranking.js';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const petImage=pet=>`assets/pet-cutouts/${String(pet.id).padStart(3,'0')}-${pet.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}.png`;
+$('.mascot-pop').src='assets/pet-cutouts/main-maple-explorer.png';
+$('.mission-scene img').src=petImage(PETS[0]);
+$('.mission-scene img').alt=`${PETS[0].name} · ${PETS[0].species}`;
 const WORDS=[
  {w:'rescue',th:'ช่วยเหลือ',wrong:['สำรวจ','ซ่อนตัว','เดินทาง'],ex:'The ranger came to ___ the lost bird.',mode:'meaning'},
  {w:'gentle',th:'อ่อนโยน',wrong:['เสียงดัง','รวดเร็ว','หิวโหย'],ex:'Be ___ when you hold the tiny rabbit.',mode:'meaning'},
@@ -155,11 +159,9 @@ function showRescuePopup(ids){
   const dialog=$('#rescue-popup'),container=$('#rescue-popup-pets');container.replaceChildren();
   $('#rescue-popup-title').textContent=ids.length>1?'ได้เพื่อนใหม่ 2 ตัว!':'ได้เพื่อนใหม่แล้ว!';
   for(const id of ids){
-    const pet=PETS[id-1],card=document.createElement('article'),portrait=document.createElement('span'),details=document.createElement('div');
+    const pet=PETS[id-1],card=document.createElement('article'),portrait=document.createElement('img'),details=document.createElement('div');
     const rarity=document.createElement('small'),name=document.createElement('h3'),trait=document.createElement('p'),story=document.createElement('p');
-    card.className='rescue-popup-pet';portrait.className='pet-portrait';portrait.setAttribute('role','img');portrait.setAttribute('aria-label',pet.species);
-    portrait.style.setProperty('--pet-image',`url('assets/pets-${pet.sheet}-25.png')`);
-    portrait.style.setProperty('--pet-x',`${pet.cell%5*25}%`);portrait.style.setProperty('--pet-y',`${Math.floor(pet.cell/5)*25}%`);
+    card.className='rescue-popup-pet';portrait.className='pet-portrait pet-cutout';portrait.src=petImage(pet);portrait.alt=`${pet.name} · ${pet.species}`;
     rarity.textContent=`${pet.rarity} · เพื่อน #${pet.id}`;name.textContent=pet.name;trait.textContent=`${pet.species} · ${pet.trait}`;story.textContent=pet.story;
     details.append(rarity,name,trait,story);card.append(portrait,details);container.append(card);
   }
@@ -200,8 +202,7 @@ function renderPetAtlas(){
     const friends=PETS.slice(group*25,(group+1)*25);
     html+=`<section class="pet-atlas-world"><h2 class="world-title">${['🌿','🌊','🏔️','✨'][group]} ${friends[0].world} <small>25 ตัว</small></h2><div class="collection-grid compact">`;
     for(const pet of friends){
-      const x=pet.cell%5*25,y=Math.floor(pet.cell/5)*25;
-      html+=`<article class="pet atlas-card" data-pet-id="${pet.id}"><span class="pet-portrait" role="img" aria-label="${pet.species}" style="--pet-image:url('assets/pets-${pet.sheet}-25.png');--pet-x:${x}%;--pet-y:${y}%"></span><div><small>${pet.rarity} · #${pet.id}</small><h2>${pet.name}</h2><p>${pet.species} · ${pet.trait}</p><p class="pet-story">${pet.story}</p></div></article>`;
+      html+=`<article class="pet atlas-card" data-pet-id="${pet.id}"><img class="pet-portrait pet-cutout" src="${petImage(pet)}" alt="${pet.name} · ${pet.species}" loading="lazy"><div><small>${pet.rarity} · #${pet.id}</small><h2>${pet.name}</h2><p>${pet.species} · ${pet.trait}</p><p class="pet-story">${pet.story}</p></div></article>`;
     }
     html+='</div></section>';
   }

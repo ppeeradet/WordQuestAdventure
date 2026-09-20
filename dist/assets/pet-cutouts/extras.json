@@ -1,0 +1,14 @@
+{
+  "main": "main-maple-explorer.png",
+  "items": [
+    "item-rescue-egg.png",
+    "item-golden-star.png",
+    "item-explorer-compass.png",
+    "item-adventure-map.png",
+    "item-healing-potion.png",
+    "item-magic-herb.png",
+    "item-echo-crystal.png",
+    "item-pet-food.png"
+  ],
+  "note": "Original vector item illustrations, exported as transparent PNG."
+}

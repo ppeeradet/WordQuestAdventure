@@ -35,3 +35,14 @@
   #screen-game .hangman-keys{gap:4px;width:100%}#screen-game .hangman-keys button{min-height:36px;height:clamp(36px,5.3vh,42px);padding:0;text-align:center;font-size:.8rem}
   #screen-game .feedback{position:static;min-height:54px;margin:0;padding:7px 9px;gap:8px;border-radius:15px;font-size:.76rem}#screen-game .feedback span{font-size:.73rem;line-height:1.2}#screen-game .feedback .primary{flex:0 0 auto;min-height:40px;padding:7px 12px;font-size:.78rem}
 }
+.pet-portrait.pet-cutout{display:block;object-fit:contain;object-position:center;background-image:none;background-color:transparent;padding:5px;filter:drop-shadow(0 9px 9px #31594b28)}
+.atlas-card{background:linear-gradient(155deg,#fff 60%,#f2fcf5);border-color:#d7eade}
+.atlas-card .pet-cutout{width:min(100%,142px);height:142px;margin:0 auto 8px;transition:transform .2s ease}
+.atlas-card:hover .pet-cutout{transform:translateY(-5px) scale(1.05)}
+.rescue-popup-pet .pet-cutout{height:140px;object-fit:contain;background:transparent}
+.mascot-pop{object-fit:contain;object-position:center bottom;border-radius:0;width:min(32vw,430px);max-height:min(68vh,670px)}
+.mission-scene{background:radial-gradient(circle at 70% 25%,#fff9d3,#d6f4df 56%,#9ed8c7);display:grid;place-items:center}
+.mission-scene img{width:100%;height:100%;object-fit:contain;object-position:center;transform:none;padding:4px 20px;filter:drop-shadow(0 7px 9px #24564733)}
+.egg-meter>span,.egg-vault>span{display:inline-block;width:42px;height:48px;background:url('assets/pet-cutouts/item-rescue-egg.png') center/contain no-repeat;font-size:0;flex:none}
+.egg-vault>span{width:76px;height:86px}
+@media(max-width:680px){.mascot-pop{display:none}.welcome-panel{z-index:2}.mission-scene img{padding:2px 28px}.atlas-card .pet-cutout{height:110px}.rescue-popup-pet .pet-cutout{height:130px}}
